@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+import os
+
+import aws_cdk as cdk
+
+from cdk.cdk_stack import SmartDocProcessingStack
+
+
+app = cdk.App()
+SmartDocProcessingStack(
+    app,
+    "SmartDocProcessingStack",
+    env=cdk.Environment(
+        account=os.getenv("CDK_DEFAULT_ACCOUNT"),
+        region=os.getenv("CDK_DEFAULT_REGION"),
+    ),
+)
+
+app.synth()

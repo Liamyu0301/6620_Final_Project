@@ -1,58 +1,42 @@
+# Smart Document Processing & Retrieval System
 
-# Welcome to your CDK Python project!
+Our team is rebuilding a cloud-native Smart Document Processing & Retrieval System on AWS. The new implementation keeps the architecture lightweight while satisfying the requirement of 8–12 microservices. Users can upload documents to S3, Lambdas orchestrate AI-powered metadata extraction, DynamoDB persists searchable entries, and Amazon SNS/API Gateway provide user notifications and APIs.
 
-This is a blank project for CDK development with Python.
+## Guiding Principles
+- **Cloud-Native & Serverless**: Prefer managed services (Lambda, S3, DynamoDB, SNS, API Gateway).
+- **Loose Coupling**: Each microservice owns a small responsibility and communicates through SQS/SNS or API Gateway.
+- **AI-Augmented Extraction**: A dedicated AI agent Lambda handles metadata extraction and summarization, leaving traditional OCR optional.
+- **Observability & Simplicity**: Shared logging/analytics service aggregates CloudWatch metrics into DynamoDB for quick inspection.
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
-
-This project is set up like a standard Python project.  The initialization
-process also creates a virtualenv within this project, stored under the `.venv`
-directory.  To create the virtualenv it assumes that there is a `python3`
-(or `python` for Windows) executable in your path with access to the `venv`
-package. If for any reason the automatic creation of the virtualenv fails,
-you can create the virtualenv manually.
-
-To manually create a virtualenv on MacOS and Linux:
-
+## Repository Structure
 ```
-$ python3 -m venv .venv
-```
-
-After the init process completes and the virtualenv is created, you can use the following
-step to activate your virtualenv.
-
-```
-$ source .venv/bin/activate
-```
-
-If you are a Windows platform, you would activate the virtualenv like this:
-
-```
-% .venv\Scripts\activate.bat
+├── README.md
+├── docs/
+│   ├── architecture_overview.md
+│   └── deployment_plan.md
+├── services/
+│   ├── api_gateway/
+│   ├── upload_service/
+│   ├── storage_service/
+│   ├── extraction_service/
+│   ├── metadata_service/
+│   ├── classification_service/
+│   ├── search_service/
+│   ├── notification_service/
+│   ├── status_service/
+│   └── analytics_service/
+└── infra/
+    └── README.md
 ```
 
-Once the virtualenv is activated, you can install the required dependencies.
+Each service contains a minimal Lambda-style handler plus a README explaining its contract with other services. The `docs/` folder captures the high-level architecture and deployment strategy, while `infra/` documents how CDK stacks should be organized.
 
-```
-$ pip install -r requirements.txt
-```
+## Quick Start (Conceptual)
+1. **Upload**: Client uploads through API Gateway → `upload_service` stores file in S3 and enqueues work.
+2. **Extraction**: `extraction_service` downloads the file, calls the AI agent, and saves metadata via `metadata_service`.
+3. **Classification**: `classification_service` enriches metadata and posts results to DynamoDB.
+4. **Search**: `search_service` exposes query APIs powered by DynamoDB Global Secondary Indexes.
+5. **Notification**: `notification_service` publishes SNS messages when processing is complete.
+6. **Status & Analytics**: `status_service` tracks lifecycle events; `analytics_service` aggregates metrics for dashboards.
 
-At this point you can now synthesize the CloudFormation template for this code.
-
-```
-$ cdk synth
-```
-
-To add additional dependencies, for example other CDK libraries, just add
-them to your `setup.py` file and rerun the `pip install -r requirements.txt`
-command.
-
-## Useful commands
-
- * `cdk ls`          list all stacks in the app
- * `cdk synth`       emits the synthesized CloudFormation template
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk docs`        open CDK documentation
-
-Enjoy!
+The sample handlers illustrate payload formats and AWS SDK usage patterns that the real system will follow once the infrastructure is provisioned.

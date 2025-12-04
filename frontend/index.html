@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Document Processing System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📄 Smart Document Processing System</h1>
+            <p class="subtitle">AI-Powered Document Processing & Retrieval</p>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-button active" onclick="showTab('upload', event)">Upload Document</button>
+            <button class="tab-button" onclick="showTab('search', event)">Search Documents</button>
+            <button class="tab-button" onclick="showTab('status', event)">Check Status</button>
+        </nav>
+
+        <div id="upload-tab" class="tab-content active">
+            <div class="card">
+                <h2>Upload Document</h2>
+                <p>Support PDF, images, Word documents and more</p>
+
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-icon">📤</div>
+                    <p>Click to select file or drag & drop</p>
+                    <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.txt" hidden>
+                    <button class="btn btn-primary" id="select-file-btn">Select File</button>
+                </div>
+
+                <div id="upload-progress" class="upload-progress" style="display:none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <p id="progress-text">Preparing upload...</p>
+                </div>
+
+                <div id="upload-result" class="result-box" style="display:none;"></div>
+            </div>
+
+            <div class="card">
+                <h3>Recent Uploads</h3>
+                <div id="recent-uploads" class="document-list">
+                    <p class="text-muted">No upload history</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="search-tab" class="tab-content">
+            <div class="card">
+                <h2>Search Documents</h2>
+                <div class="search-box">
+                    <input type="text" id="search-input" placeholder="Enter keywords to search..." class="search-input">
+                    <button class="btn btn-primary" onclick="searchDocuments()">🔍 Search</button>
+                </div>
+
+                <div class="filters">
+                    <select id="category-filter" class="filter-select">
+                        <option value="">All Categories</option>
+                        <option value="resume">Resume</option>
+                        <option value="report">Report</option>
+                        <option value="article">Article</option>
+                        <option value="invoice">Invoice</option>
+                        <option value="contract">Contract</option>
+                        <option value="letter">Letter</option>
+                        <option value="certificate">Certificate</option>
+                        <option value="legal">Legal Document</option>
+                        <option value="presentation">Presentation</option>
+                        <option value="manual">Manual</option>
+                        <option value="form">Form</option>
+                    </select>
+
+                    <select id="type-filter" class="filter-select">
+                        <option value="">All Types</option>
+                        <option value="pdf">PDF</option>
+                        <option value="jpg">JPG Image</option>
+                        <option value="png">PNG Image</option>
+                        <option value="gif">GIF Image</option>
+                        <option value="docx">Word Document (DOCX)</option>
+                        <option value="doc">Word Document (DOC)</option>
+                        <option value="txt">Text File</option>
+                        <option value="csv">CSV File</option>
+                    </select>
+                </div>
+
+                <div id="search-results" class="search-results">
+                    <p class="text-muted">Please enter keywords to start searching</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="status-tab" class="tab-content">
+            <div class="card">
+                <h2>Check Document Status</h2>
+                <div class="search-box">
+                    <input type="text" id="document-id-input" placeholder="Enter document ID..." class="search-input">
+                    <button class="btn btn-primary" onclick="checkStatus()">Check Status</button>
+                </div>
+                <div id="status-result" class="status-result">
+                    <p class="text-muted">Please enter document ID to check processing status</p>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2025 Smart Document Processing System | Powered by AWS & AI</p>
+        </footer>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
