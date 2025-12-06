@@ -1,4 +1,5 @@
 """Simplified upload handler."""
+
 from __future__ import annotations
 
 import base64
@@ -10,6 +11,9 @@ from typing import Any, Dict
 
 import boto3
 import mimetypes
+
+# Import authentication utilities
+from auth_utils import get_user_from_token
 
 s3 = boto3.client("s3")
 sqs = boto3.client("sqs")
@@ -27,6 +31,15 @@ CORS_HEADERS = {
 
 
 def lambda_handler(event: Dict[str, Any], _context: Any) -> Dict[str, Any]:
+    # Verify user identity
+    headers = event.get("headers") or {}
+    auth_header = headers.get("Authorization") or headers.get("authorization", "")
+    user_info = get_user_from_token(auth_header)
+    if not user_info:
+        return _response(401, {"message": "Unauthorized, please login first"})
+
+    user_id = user_info.get("userId")
+
     body = json.loads(event.get("body") or "{}")
     file_content = body.get("base64File")
     filename = body.get("filename", "document.pdf")
@@ -43,12 +56,15 @@ def lambda_handler(event: Dict[str, Any], _context: Any) -> Dict[str, Any]:
     s3.put_object(Bucket=DOC_BUCKET, Key=object_key, Body=binary_body)
 
     upload_timestamp = datetime.utcnow().isoformat()
-    file_extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else "unknown"
+    file_extension = (
+        filename.rsplit(".", 1)[-1].lower() if "." in filename else "unknown"
+    )
     content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
 
     DOCUMENTS_TABLE.put_item(
         Item={
             "documentId": document_id,
+            "userId": user_id,  # Associate with user ID
             "status": "pending_extraction",
             "filename": filename,
             "fileType": file_extension,

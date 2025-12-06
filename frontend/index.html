@@ -11,15 +11,60 @@
         <header>
             <h1>📄 Smart Document Processing System</h1>
             <p class="subtitle">AI-Powered Document Processing & Retrieval</p>
+            <div id="user-info" style="margin-top: 20px; display: none;">
+                <span id="username-display"></span>
+                <button class="btn btn-primary" onclick="logout()" style="margin-left: 15px; padding: 8px 20px; font-size: 0.9em;">Logout</button>
+            </div>
         </header>
 
         <nav class="tabs">
-            <button class="tab-button active" onclick="showTab('upload', event)">Upload Document</button>
-            <button class="tab-button" onclick="showTab('search', event)">Search Documents</button>
-            <button class="tab-button" onclick="showTab('status', event)">Check Status</button>
+            <button class="tab-button" onclick="showTab('auth', event)" id="auth-tab-btn">Login/Register</button>
+            <button class="tab-button" onclick="showTab('upload', event)" id="upload-tab-btn" style="display:none;">Upload Document</button>
+            <button class="tab-button" onclick="showTab('search', event)" id="search-tab-btn" style="display:none;">Search Documents</button>
+            <button class="tab-button" onclick="showTab('status', event)" id="status-tab-btn" style="display:none;">Check Status</button>
         </nav>
 
-        <div id="upload-tab" class="tab-content active">
+        <div id="auth-tab" class="tab-content active">
+            <div class="card">
+                <h2>User Login / Register</h2>
+                <div id="auth-tabs" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button class="btn btn-primary" onclick="showAuthForm('login')" id="login-btn">Login</button>
+                    <button class="btn" onclick="showAuthForm('register')" id="register-btn" style="background: #e9ecef;">Register</button>
+                </div>
+                
+                <div id="login-form">
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: bold;">Username</label>
+                        <input type="text" id="login-username" class="search-input" placeholder="Enter username">
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: bold;">Password</label>
+                        <input type="password" id="login-password" class="search-input" placeholder="Enter password">
+                    </div>
+                    <button class="btn btn-primary" onclick="handleLogin()" style="width: 100%;">Login</button>
+                </div>
+
+                <div id="register-form" style="display: none;">
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: bold;">Username</label>
+                        <input type="text" id="register-username" class="search-input" placeholder="Enter username (at least 3 characters)">
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: bold;">Password</label>
+                        <input type="password" id="register-password" class="search-input" placeholder="Enter password (at least 6 characters)">
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: bold;">Email (Optional)</label>
+                        <input type="email" id="register-email" class="search-input" placeholder="Enter email">
+                    </div>
+                    <button class="btn btn-primary" onclick="handleRegister()" style="width: 100%;">Register</button>
+                </div>
+
+                <div id="auth-result" class="result-box" style="display:none; margin-top: 20px;"></div>
+            </div>
+        </div>
+
+        <div id="upload-tab" class="tab-content">
             <div class="card">
                 <h2>Upload Document</h2>
                 <p>Support PDF, images, Word documents and more</p>
