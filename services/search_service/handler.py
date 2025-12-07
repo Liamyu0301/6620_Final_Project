@@ -7,6 +7,9 @@ from typing import Any, Dict, List
 
 import boto3
 
+# Import authentication utilities
+from auth_utils import get_user_from_token
+
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(os.environ.get("DOCUMENTS_TABLE", "DocumentsTable"))
 
@@ -19,6 +22,15 @@ CORS_HEADERS = {
 
 def lambda_handler(event: Dict[str, Any], _context: Any) -> Dict[str, Any]:
     try:
+        # Verify user identity
+        headers = event.get("headers") or {}
+        auth_header = headers.get("Authorization") or headers.get("authorization", "")
+        user_info = get_user_from_token(auth_header)
+        if not user_info:
+            return _response(401, {"message": "Unauthorized, please login first"})
+
+        user_id = user_info.get("userId")
+
         params = event.get("queryStringParameters") or {}
         query = (params.get("q") or params.get("query") or "").strip().lower()
         category_filter = (params.get("category") or "").strip().lower()
@@ -26,7 +38,7 @@ def lambda_handler(event: Dict[str, Any], _context: Any) -> Dict[str, Any]:
         status_filter = (params.get("status") or "").strip().lower()
         limit = min(int(params.get("limit") or 50), 200)
 
-        items = _scan_all_items()
+        items = _scan_all_items(user_id)  # Only get current user's files
         filtered: List[Dict[str, Any]] = []
         for item in items:
             if not _matches_query(item, query):
@@ -62,12 +74,17 @@ def lambda_handler(event: Dict[str, Any], _context: Any) -> Dict[str, Any]:
         return _response(500, {"message": str(err)})
 
 
-def _scan_all_items() -> List[Dict[str, Any]]:
+def _scan_all_items(user_id: str) -> List[Dict[str, Any]]:
+    """Scan all documents but only return documents for the specified user"""
     items: List[Dict[str, Any]] = []
     kwargs: Dict[str, Any] = {}
     while True:
         resp = table.scan(**kwargs)
-        items.extend(resp.get("Items", []))
+        # Filter documents for current user
+        user_items = [
+            item for item in resp.get("Items", []) if item.get("userId") == user_id
+        ]
+        items.extend(user_items)
         last_key = resp.get("LastEvaluatedKey")
         if not last_key:
             break

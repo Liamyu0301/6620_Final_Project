@@ -41,7 +41,9 @@ class SmartDocProcessingStack(Stack):
         documents_table = dynamodb.Table(
             self,
             "DocumentsTable",
-            partition_key=dynamodb.Attribute(name="documentId", type=dynamodb.AttributeType.STRING),
+            partition_key=dynamodb.Attribute(
+                name="documentId", type=dynamodb.AttributeType.STRING
+            ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.DESTROY,
         )
@@ -49,8 +51,22 @@ class SmartDocProcessingStack(Stack):
         status_table = dynamodb.Table(
             self,
             "StatusTable",
-            partition_key=dynamodb.Attribute(name="documentId", type=dynamodb.AttributeType.STRING),
-            sort_key=dynamodb.Attribute(name="timestamp", type=dynamodb.AttributeType.NUMBER),
+            partition_key=dynamodb.Attribute(
+                name="documentId", type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="timestamp", type=dynamodb.AttributeType.NUMBER
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
+        users_table = dynamodb.Table(
+            self,
+            "UsersTable",
+            partition_key=dynamodb.Attribute(
+                name="username", type=dynamodb.AttributeType.STRING
+            ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.DESTROY,
         )
@@ -76,7 +92,9 @@ class SmartDocProcessingStack(Stack):
             "ExtractionQueue",
             visibility_timeout=Duration.minutes(5),
         )
-        metadata_queue = sqs.Queue(self, "MetadataQueue", visibility_timeout=Duration.minutes(5))
+        metadata_queue = sqs.Queue(
+            self, "MetadataQueue", visibility_timeout=Duration.minutes(5)
+        )
         classification_queue = sqs.Queue(
             self,
             "ClassificationQueue",
@@ -98,7 +116,12 @@ class SmartDocProcessingStack(Stack):
         def service_code(path: str) -> lambda_.Code:
             return lambda_.Code.from_asset(str(services_dir / path))
 
-        def build_lambda(id_: str, path: str, env: dict[str, str], timeout: Duration = Duration.seconds(60)) -> lambda_.Function:
+        def build_lambda(
+            id_: str,
+            path: str,
+            env: dict[str, str],
+            timeout: Duration = Duration.seconds(60),
+        ) -> lambda_.Function:
             fn = lambda_.Function(
                 self,
                 id_,
@@ -167,7 +190,34 @@ class SmartDocProcessingStack(Stack):
         status_lambda = build_lambda(
             "StatusFunction",
             "status_service",
-            {"STATUS_TABLE": status_table.table_name},
+            {
+                "STATUS_TABLE": status_table.table_name,
+                "DOCUMENTS_TABLE": documents_table.table_name,
+            },
+        )
+
+        # Generate JWT secret (get from environment variable, use default if not set, production should use AWS Secrets Manager)
+        jwt_secret = os.environ.get(
+            "JWT_SECRET", "change-this-secret-key-in-production-" + construct_id
+        )
+
+        auth_lambda = build_lambda(
+            "AuthFunction",
+            "auth_service",
+            {
+                "USERS_TABLE": users_table.table_name,
+                "JWT_SECRET": jwt_secret,
+            },
+        )
+
+        download_lambda = build_lambda(
+            "DownloadFunction",
+            "download_service",
+            {
+                "DOCUMENTS_BUCKET": documents_bucket.bucket_name,
+                "DOCUMENTS_TABLE": documents_table.table_name,
+                "JWT_SECRET": jwt_secret,
+            },
         )
 
         documents_bucket.grant_put(upload_lambda)
@@ -189,15 +239,28 @@ class SmartDocProcessingStack(Stack):
         status_table.grant_read_write_data(status_lambda)
         status_queue.grant_consume_messages(status_lambda)
 
+        # Auth service permissions
+        users_table.grant_read_write_data(auth_lambda)
+
+        # Download service permissions
+        documents_table.grant_read_data(download_lambda)
+        documents_bucket.grant_read(download_lambda)
+
         extraction_queue.grant_consume_messages(extraction_lambda)
         metadata_queue.grant_consume_messages(metadata_lambda)
         classification_queue.grant_consume_messages(classification_lambda)
         notification_queue.grant_consume_messages(notification_lambda)
 
-        extraction_lambda.add_event_source(lambda_events.SqsEventSource(extraction_queue))
+        extraction_lambda.add_event_source(
+            lambda_events.SqsEventSource(extraction_queue)
+        )
         metadata_lambda.add_event_source(lambda_events.SqsEventSource(metadata_queue))
-        classification_lambda.add_event_source(lambda_events.SqsEventSource(classification_queue))
-        notification_lambda.add_event_source(lambda_events.SqsEventSource(notification_queue))
+        classification_lambda.add_event_source(
+            lambda_events.SqsEventSource(classification_queue)
+        )
+        notification_lambda.add_event_source(
+            lambda_events.SqsEventSource(notification_queue)
+        )
         status_lambda.add_event_source(lambda_events.SqsEventSource(status_queue))
 
         api = apigw.RestApi(
@@ -210,16 +273,35 @@ class SmartDocProcessingStack(Stack):
                 allow_headers=["*"],
             ),
         )
+
+        # Authentication endpoints
+        auth_resource = api.root.add_resource("auth")
+        auth_register_resource = auth_resource.add_resource("register")
+        auth_register_resource.add_method("POST", apigw.LambdaIntegration(auth_lambda))
+        auth_login_resource = auth_resource.add_resource("login")
+        auth_login_resource.add_method("POST", apigw.LambdaIntegration(auth_lambda))
+
+        # Document upload (requires authentication)
         documents_resource = api.root.add_resource("documents")
         documents_resource.add_method("POST", apigw.LambdaIntegration(upload_lambda))
 
+        # Search (requires authentication)
         search_resource = api.root.add_resource("search")
         search_resource.add_method("GET", apigw.LambdaIntegration(search_lambda))
 
+        # Status query (requires authentication)
         status_resource = api.root.add_resource("status").add_resource("{id}")
         status_resource.add_method("GET", apigw.LambdaIntegration(status_lambda))
 
+        # File download (requires authentication)
+        download_resource = api.root.add_resource("download")
+        download_resource.add_method("GET", apigw.LambdaIntegration(download_lambda))
+
         documents_table.grant_read_data(status_lambda)
+
+        # Add JWT_SECRET environment variable to all services that require authentication
+        for lambda_fn in [upload_lambda, search_lambda, status_lambda, download_lambda]:
+            lambda_fn.add_environment("JWT_SECRET", jwt_secret)
 
         upload_lambda.add_to_role_policy(
             iam.PolicyStatement(
